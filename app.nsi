@@ -1,4 +1,4 @@
-; ================================================================
+﻿; ================================================================
 ; 通用 NSIS 安装脚本（覆盖静默升级 + 启动询问）
 ; 功能：全新安装显示完整向导；已安装时自动覆盖，跳过所有交互页，
 ;       但覆盖完成后询问是否立即启动程序。
@@ -23,7 +23,7 @@ SetCompressor /SOLID LZMA
 ; ================================================================
 !define APP_DISPLAY_NAME "SourceGit"  ; 显示名称（界面、快捷方式）
 !define APP_NAME         "SourceGit"  ; 内部名称（用于目录名、注册表键）
-!define APP_ID           "com.github.SourceGit-scm.SourceGit" ; 唯一ID（建议使用网站倒序）
+!define APP_ID           "com.github.SourceGit-scm.SourceGit" ; 唯一ID
 !define APP_EXE          "SourceGit.exe"  ; 主程序文件名
 !define APP_VERSION      "2026.7.27.16"   ; 版本号（必须四段数字）
 !define APP_PUBLISHER    "https://github.com/SourceGit-scm/"   ; 组织名
@@ -32,14 +32,12 @@ SetCompressor /SOLID LZMA
 
 !define DIST_DIR         "D:\Fsoft\SourceGit" ; 源文件目录（所有待安装文件）
 !define ICON_FILE        "icon.ico"  ; 图标文件（位于脚本同目录）
-!define LICENSE_FILE     "LICENSE"   ; 许可文件（位于脚本同目录,若不需要可注释）
 
-; 可选界面图片（若无请注释）  Header(150x57)  left(164x314)
-;!define MUI_HEADERIMAGE
-;!define MUI_HEADERIMAGE_RIGHT
-;!define MUI_HEADERIMAGE_BITMAP "Header.bmp"
-;!define MUI_WELCOMEFINISHPAGE_BITMAP   "left.bmp"
-;!define MUI_UNWELCOMEFINISHPAGE_BITMAP "left.bmp"
+; --- 可选界面图片配置 ---
+; 取消注释即可启用对应的图片（请确保 BMP 图片存放在脚本同级目录下）
+; !define LICENSE_FILE      "LICENSE"   ; 许可文件（位于脚本同目录）
+; !define HEADER_BITMAP     "header.bmp" ; 顶部标头图片，推荐尺寸: 150x57px
+; !define LEFT_BITMAP       "left.bmp"   ; 左侧侧边栏图片（欢迎/完成页），推荐尺寸: 164x314px
 
 ; ================================================================
 ; 输出文件名与品牌
@@ -68,7 +66,7 @@ VIAddVersionKey "URLInfoAbout"    "${APP_WEBSITE}"
 !define REG_KEY_APP       "Software\${APP_ID}"
 !define REG_KEY_UNINST    "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_ID}"
 
-; ------------------- MUI 界面样式 -------------------
+; ------------------- MUI 界面样式与图片应用 -------------------
 !define MUI_ICON "${ICON_FILE}"
 !define MUI_UNICON "${ICON_FILE}"
 !define MUI_ABORTWARNING
@@ -76,26 +74,43 @@ VIAddVersionKey "URLInfoAbout"    "${APP_WEBSITE}"
 !define MUI_FINISHPAGE_RUN_TEXT "启动 $(^Name)"
 !define MUI_FINISHPAGE_RUN_CHECKED
 
+; 判断并应用 Header 标头图片
+!ifdef HEADER_BITMAP
+    !define MUI_HEADERIMAGE
+    !define MUI_HEADERIMAGE_RIGHT
+    !define MUI_HEADERIMAGE_BITMAP "${HEADER_BITMAP}"
+    !define MUI_HEADERIMAGE_UNBITMAP "${HEADER_BITMAP}"
+!endif
+
+; 判断并应用 Left 侧边栏图片（用于欢迎/完成/卸载页面）
+!ifdef LEFT_BITMAP
+    !define MUI_WELCOMEFINISHPAGE_BITMAP "${LEFT_BITMAP}"
+    !define MUI_UNWELCOMEFINISHPAGE_BITMAP "${LEFT_BITMAP}"
+!endif
+
 ; ------------------- 页面定义（升级时跳过交互页） -------------------
 !define MUI_PAGE_CUSTOMFUNCTION_PRE WelcomePagePre
 !insertmacro MUI_PAGE_WELCOME
+
+; 许可页面保留（默认注释，取消注释可用）
+!ifdef LICENSE_FILE
+    !define MUI_PAGE_CUSTOMFUNCTION_PRE LicensePagePre
+    !insertmacro MUI_PAGE_LICENSE "${LICENSE_FILE}"
+!endif
 
 !define MUI_PAGE_CUSTOMFUNCTION_PRE ComponentsPagePre
 !insertmacro MUI_PAGE_COMPONENTS
 
 !define MUI_PAGE_CUSTOMFUNCTION_PRE DirectoryPagePre
+!define MUI_PAGE_CUSTOMFUNCTION_LEAVE DirectoryPageLeave  ; 绑定非空校验
 !insertmacro MUI_PAGE_DIRECTORY
-
-; 许可页面（如需启用，取消注释并添加 Pre 函数）
-!define MUI_PAGE_CUSTOMFUNCTION_PRE LicensePagePre
-!insertmacro MUI_PAGE_LICENSE "${LICENSE_FILE}"
 
 !insertmacro MUI_PAGE_INSTFILES
 
 !define MUI_PAGE_CUSTOMFUNCTION_PRE FinishPagePre
 !insertmacro MUI_PAGE_FINISH
 
-; 卸载页面（不做改动）
+; 卸载页面定义
 !insertmacro MUI_UNPAGE_WELCOME
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
@@ -104,14 +119,15 @@ VIAddVersionKey "URLInfoAbout"    "${APP_WEBSITE}"
 ; ------------------- 语言与本地化 -------------------
 !insertmacro MUI_LANGUAGE "SimpChinese"
 
-LangString STR_DESKTOP    ${LANG_SIMPCHINESE} "创建桌面快捷方式"
-LangString STR_STARTMENU  ${LANG_SIMPCHINESE} "创建开始菜单程序组"
+LangString STR_DESKTOP            ${LANG_SIMPCHINESE} "创建桌面快捷方式"
+LangString STR_STARTMENU          ${LANG_SIMPCHINESE} "创建开始菜单程序组"
 LangString STR_UNINSTALL_KEEP_CFG ${LANG_SIMPCHINESE} "是否保留用户配置文件？$\r$\n选择「是」保留配置（位于 ${APP_DATA_DIR}），下次安装可恢复。$\r$\n选择「否」将同时清除所有用户配置。"
-LangString STR_DIR_NOT_EMPTY ${LANG_SIMPCHINESE} "目标目录不为空！$\r$\n卸载时将删除整个目录，请确认该目录仅包含本应用的文件。$\r$\n是否继续？"
-LangString STR_ADMIN_REQUIRED ${LANG_SIMPCHINESE} "需要管理员权限！$\r$\n请右键选择「以管理员身份运行」后重试。"
-LangString STR_SPACE_NOT_ENOUGH ${LANG_SIMPCHINESE} "磁盘空间不足！$\r$\n需要至少 $RequiredSpace MB 的空间。$\r$\n当前可用空间：$AvailableSpace MB"
+LangString STR_DIR_NOT_EMPTY     ${LANG_SIMPCHINESE} "目标目录不为空！$\r$\n警告：卸载时将会清空整个安装目录！$\r$\n请确保选择的目录仅包含本软件文件，避免误删其他重要文件。$\r$\n是否仍要在此目录安装？"
+LangString STR_ADMIN_REQUIRED     ${LANG_SIMPCHINESE} "需要管理员权限！$\r$\n请右键选择「以管理员身份运行」后重试。"
+LangString STR_SPACE_NOT_ENOUGH   ${LANG_SIMPCHINESE} "磁盘空间不足！$\r$\n需要至少 $RequiredSpace MB 的空间。$\r$\n当前可用空间：$AvailableSpace MB"
 LangString STR_SOURCE_DIR_MISSING ${LANG_SIMPCHINESE} "源文件目录不存在！$\r$\n请检查 DIST_DIR 配置。"
 LangString STR_SYSTEM_PATH_PROTECT ${LANG_SIMPCHINESE} "安装目录是系统关键路径，安装已取消以防止系统损坏。"
+LangString STR_EXTRACT_PREVENT    ${LANG_SIMPCHINESE} "请直接双击运行本安装包，请勿使用解压软件解压后运行！"
 
 ; ------------------- 全局变量 -------------------
 Var IsUpgradeMode
@@ -121,9 +137,15 @@ Var RequiredSpace
 Var AvailableSpace
 
 ; ================================================================
-; 页面 Pre 函数（升级时跳过所有交互页）
+; 页面 Pre 函数（升级模式自动跳过）
 ; ================================================================
 Function WelcomePagePre
+    ${If} $IsUpgradeMode == 1
+        Abort
+    ${EndIf}
+FunctionEnd
+
+Function LicensePagePre
     ${If} $IsUpgradeMode == 1
         Abort
     ${EndIf}
@@ -147,13 +169,6 @@ Function FinishPagePre
     ${EndIf}
 FunctionEnd
 
-; 许可页面（如需启用）
-Function LicensePagePre
-    ${If} $IsUpgradeMode == 1
-        Abort
-    ${EndIf}
-FunctionEnd
-
 ; ================================================================
 ; 安装初始化（检测旧版本、强制杀进程、权限、磁盘）
 ; ================================================================
@@ -170,7 +185,7 @@ Function .onInit
         Abort
     ${EndIf}
 
-    ; 系统位数与默认路径
+    ; 系统位数与默认路径选择
     ${If} ${RunningX64}
         SetRegView 64
         StrCpy $INSTDIR "${INSTALL_DIR_64}"
@@ -179,7 +194,7 @@ Function .onInit
         StrCpy $INSTDIR "${INSTALL_DIR_32}"
     ${EndIf}
 
-    ; 检测旧版本（尝试两种注册表视图）
+    ; 检测已安装旧版本
     ${If} ${RunningX64}
         SetRegView 64
         ReadRegStr $OldInstallPath ${REG_ROOT} "${REG_KEY_APP}" "Install_Dir"
@@ -197,10 +212,9 @@ Function .onInit
 
     ${If} $OldInstallPath != ""
         ${If} ${FileExists} "$OldInstallPath\${APP_EXE}"
-            ; 直接进入升级（无询问）
             Goto DoUpgrade
         ${EndIf}
-        ; 注册表无效，清理
+        ; 清理残留注册表
         ${If} ${RunningX64}
             SetRegView 64
             DeleteRegKey ${REG_ROOT} "${REG_KEY_APP}"
@@ -215,13 +229,6 @@ Function .onInit
         ${EndIf}
         StrCpy $OldInstallPath ""
         StrCpy $OldVersion ""
-        ${If} ${RunningX64}
-            SetRegView 64
-            StrCpy $INSTDIR "${INSTALL_DIR_64}"
-        ${Else}
-            SetRegView 32
-            StrCpy $INSTDIR "${INSTALL_DIR_32}"
-        ${EndIf}
     ${EndIf}
 
     Goto OnInitDone
@@ -229,14 +236,14 @@ Function .onInit
 DoUpgrade:
     StrCpy $IsUpgradeMode 1
     StrCpy $INSTDIR $OldInstallPath
-    
-    DetailPrint "正在尝试自动关闭旧版本 ${APP_DISPLAY_NAME} 进程..."
+
+    DetailPrint "正在检查并自动关闭运行中的 ${APP_DISPLAY_NAME} 进程..."
     StrCpy $1 0
 
   KillLoop:
     IntOp $1 $1 + 1
     ExecWait 'taskkill /f /im "${APP_EXE}"' $0
-    
+
     ${If} $0 == 0
         DetailPrint "已成功关闭旧版本进程 (尝试次数: $1)。"
         Goto KillDone
@@ -290,13 +297,11 @@ Function CheckDiskSpace
 FunctionEnd
 
 ; ================================================================
-; 目录页离开时检查非空（仅全新安装时生效，升级时已跳过）
+; 目录页离开校验（首次安装强制提醒非空文件夹）
 ; ================================================================
 Function DirectoryPageLeave
     ${If} $IsUpgradeMode == 1
-        ${If} $INSTDIR == $OldInstallPath
-            Return
-        ${EndIf}
+        Return
     ${EndIf}
 
     ${If} ${FileExists} "$INSTDIR"
@@ -329,13 +334,12 @@ FunctionEnd
 Section "主程序文件" SecMain
     SectionIn RO
     SetOutPath "$INSTDIR"
-    SetOverwrite on  ; 强制覆盖所有文件
+    SetOverwrite on
 
     File /r "${DIST_DIR}\*"
 
     WriteUninstaller "$INSTDIR\uninstall.exe"
 
-    ; 写入注册表（使用正确视图）
     ${If} ${RunningX64}
         SetRegView 64
     ${Else}
@@ -359,9 +363,9 @@ Section "主程序文件" SecMain
     ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
     WriteRegDWORD ${REG_ROOT} "${REG_KEY_UNINST}" "EstimatedSize" $0
 
-    ; ===== 新增：覆盖安装完成后询问是否立即启动 =====
+    ; 覆盖安装完成后询问启动
     ${If} $IsUpgradeMode == 1
-        MessageBox MB_YESNO|MB_ICONQUESTION "安装完成，是否立即启动 $(^Name)？" /SD IDYES IDNO +2
+        MessageBox MB_YESNO|MB_ICONQUESTION "升级安装完成，是否立即启动 $(^Name)？" IDNO +2
             Exec '"$INSTDIR\${APP_EXE}"'
     ${EndIf}
 SectionEnd
@@ -380,10 +384,9 @@ Section "$(STR_STARTMENU)" SecStartMenu
 SectionEnd
 
 ; ================================================================
-; 卸载区段（完全保留之前的所有修复）
+; 卸载区段
 ; ================================================================
 Section "Uninstall"
-    ; 确定安装目录
     ${If} ${RunningX64}
         SetRegView 64
         ReadRegStr $INSTDIR ${REG_ROOT} "${REG_KEY_APP}" "Install_Dir"
@@ -399,7 +402,6 @@ Section "Uninstall"
         StrCpy $INSTDIR "$EXEDIR"
     ${EndIf}
 
-    ; 安全校验
     ${If} $INSTDIR == ""
         MessageBox MB_ICONSTOP "无法确定安装目录，请手动删除程序文件夹。"
         Abort
@@ -414,11 +416,10 @@ Section "Uninstall"
     ${EndIf}
     StrLen $0 $INSTDIR
     ${If} $0 < 3
-        MessageBox MB_ICONSTOP "安装目录路径太短（可能是根目录），卸载取消以防止系统损坏。"
+        MessageBox MB_ICONSTOP "安装目录路径太短，卸载取消以防止误删系统文件。"
         Abort
     ${EndIf}
 
-    ; 自清理
     ${If} $EXEPATH != "$TEMP\uninstall.exe"
         CopyFiles /SILENT "$EXEPATH" "$TEMP\uninstall.exe"
         ExecWait '"$TEMP\uninstall.exe" _?=$INSTDIR'
@@ -426,20 +427,9 @@ Section "Uninstall"
         Quit
     ${EndIf}
 
-    ; 关闭进程
     DetailPrint "正在检查 ${APP_DISPLAY_NAME} 进程状态..."
     ExecWait 'taskkill /f /im "${APP_EXE}"' $0
-    ${If} $0 == 0
-        DetailPrint "已关闭进程。"
-    ${ElseIf} $0 == 128
-        DetailPrint "未检测到运行中的 ${APP_EXE}，继续卸载。"
-    ${Else}
-        DetailPrint "无法自动关闭 ${APP_EXE}（错误码 $0），将继续卸载，但可能残留文件。"
-        MessageBox MB_OK|MB_ICONEXCLAMATION "无法关闭 ${APP_EXE} 进程。$\r$\n请手动结束该进程，否则部分文件可能无法删除。"
-    ${EndIf}
-    Sleep 1500
 
-    ; 保留配置询问
     MessageBox MB_YESNO|MB_ICONQUESTION "$(STR_UNINSTALL_KEEP_CFG)" IDNO PurgeConfig
     Goto AfterConfig
 PurgeConfig:
@@ -449,16 +439,13 @@ PurgeConfig:
     ${EndIf}
 AfterConfig:
 
-    ; 删除快捷方式
     Delete "$DESKTOP\${APP_DISPLAY_NAME}.lnk"
     Delete "$SMPROGRAMS\${APP_DISPLAY_NAME}\*.lnk"
     RMDir "$SMPROGRAMS\${APP_DISPLAY_NAME}"
 
-    ; 删除安装目录
     RMDir /r "$INSTDIR"
     RMDir /REBOOTOK "$INSTDIR"
 
-    ; 删除注册表（两种视图）
     ${If} ${RunningX64}
         SetRegView 64
         DeleteRegKey ${REG_ROOT} "${REG_KEY_UNINST}"
@@ -473,6 +460,5 @@ AfterConfig:
     ${EndIf}
 
     Delete "$EXEPATH"
-
-    MessageBox MB_OK|MB_ICONINFORMATION "卸载完成，程序文件已清理完毕。"
+    MessageBox MB_OK|MB_ICONINFORMATION "卸载完成，所有文件清理完毕。"
 SectionEnd
