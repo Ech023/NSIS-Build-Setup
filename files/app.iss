@@ -19,6 +19,7 @@
 #define IconFile        "icon.ico"                       ; 脚本同级目录下的图标文件（打包时请确认存在）
 ; ----------------------------------------------------------------
 
+
 [Setup]
 AppId={#AppIdValue}
 AppName={#AppDisplayName}
@@ -41,10 +42,10 @@ RestartApplications=no
 DisableProgramGroupPage=yes
 
 [Languages]
-Name: "chinesesimp"; MessagesFile: "compiler:Languages\\ChineseSimplified.isl"
+Name: "chinesesimp"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
 
 [Files]
-Source: "{#SourceDir}\\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{commondesktop}\{#AppDisplayName}"; Filename: "{app}\{#AppExe}"; WorkingDir: "{app}"
@@ -85,12 +86,12 @@ var
   S: String;
 begin
   S := '';
-  if RegQueryStringValue(HKLM64, 'Software\\{#AppIdValue}', 'Install_Dir', S) then
+  if RegQueryStringValue(HKLM64, 'Software\{#AppIdValue}', 'Install_Dir', S) then
   begin
     Result := S;
     Exit;
   end;
-  if RegQueryStringValue(HKLM32, 'Software\\{#AppIdValue}', 'Install_Dir', S) then
+  if RegQueryStringValue(HKLM32, 'Software\{#AppIdValue}', 'Install_Dir', S) then
   begin
     Result := S;
     Exit;
@@ -127,7 +128,7 @@ begin
   OldInstallPath := GetOldInstallPath();
   if OldInstallPath <> '' then
   begin
-    if FileExists(ExpandConstant(AddBackslash(OldInstallPath) + '{#AppExe}')) then
+    if FileExists(AddBackslash(OldInstallPath) + '{#AppExe}') then
     begin
       UpgradeMode := True;
       KillProcessSilent('{#AppExe}');
@@ -135,9 +136,9 @@ begin
     end
     else
     begin
-      ; 清理残留注册表（如果旧目录已不存在）
-      RegDeleteKeyIncludingSubkeys(HKLM64, 'Software\\{#AppIdValue}');
-      RegDeleteKeyIncludingSubkeys(HKLM32, 'Software\\{#AppIdValue}');
+      // 清理残留注册表（如果旧目录已不存在）
+      RegDeleteKeyIncludingSubkeys(HKLM64, 'Software\{#AppIdValue}');
+      RegDeleteKeyIncludingSubkeys(HKLM32, 'Software\{#AppIdValue}');
       OldInstallPath := '';
     end;
   end;
@@ -153,7 +154,15 @@ begin
 
   if UpgradeMode then
   begin
-    // 升级模式尽量隐藏向导页面（Inno 有些内置页面在某些主题下不可见/移除，下面为尽量隐藏）    WizardForm.WelcomeLabel.Visible := False;    WizardForm.SelectDirPage.Visible := False;    WizardForm.ReadyPage.Visible := False;    WizardForm.FinishedPage.Visible := False;  end;
+    // 升级模式隐藏所有页面（包括完成页）
+    WizardForm.WelcomePage.Visible := False;
+    WizardForm.SelectDirPage.Visible := False;
+    WizardForm.ReadyPage.Visible := False;
+    WizardForm.FinishedPage.Visible := False;
+    // 如果有许可页或组件页也可一并隐藏
+    // WizardForm.LicensePage.Visible := False;
+    // WizardForm.SelectComponentsPage.Visible := False;
+  end;
 end;
 
 // ----------------------------------------------------------------
@@ -164,11 +173,19 @@ begin
   Result := False;
   if UpgradeMode then
   begin
-    if (PageID = wpWelcome) or (PageID = wpLicense) or (PageID = wpSelectDir) or (PageID = wpReady) or (PageID = wpFinished) then
+    if (PageID = wpWelcome) or
+       (PageID = wpLicense) or
+       (PageID = wpSelectComponents) or
+       (PageID = wpSelectDir) or
+       (PageID = wpReady) or
+       (PageID = wpFinished) then
+    begin
       Result := True;
+    end;
   end
   else
   begin
+    // 首次安装只跳过完成页
     if (PageID = wpFinished) then
       Result := True;
   end;
@@ -197,7 +214,7 @@ begin
   begin
     Ret := MsgBox(ExpandConstant('{#AppDisplayName} 安装完成，是否立即启动？'), mbConfirmation, MB_YESNO);
     if Ret = IDYES then
-      Exec(ExpandConstant('{app}\\{#AppExe}'), '', '', SW_SHOWNORMAL, ewNoWait, Ret);
+      Exec(ExpandConstant('{app}\{#AppExe}'), '', '', SW_SHOWNORMAL, ewNoWait, Ret);
   end;
 end;
 
@@ -210,9 +227,12 @@ var
 begin
   Result := True;
   Path := ExpandConstant('{app}');
-  if (LowerCase(Path) = 'c:\\') or (LowerCase(Path) = 'c:\\windows') or
-     (LowerCase(Path) = 'c:\\windows\\system32') or (LowerCase(Path) = 'c:\\windows\\syswow64') or
-     (LowerCase(Path) = 'd:\\') or (Length(Path) < 3) then
+  if (LowerCase(Path) = 'c:\') or
+     (LowerCase(Path) = 'c:\windows') or
+     (LowerCase(Path) = 'c:\windows\system32') or
+     (LowerCase(Path) = 'c:\windows\syswow64') or
+     (LowerCase(Path) = 'd:\') or
+     (Length(Path) < 3) then
   begin
     MsgBox('检测到危险系统目录，卸载已取消。', mbError, MB_OK);
     Result := False;
